@@ -90,6 +90,19 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// DELETE /api/v1/classes/:id (soft delete)
+router.delete('/:id', async (req, res) => {
+  try {
+    const cls = await ClassLevel.findByPk(req.params.id);
+    if (!cls) return res.status(404).json({ error: 'Class not found' });
+
+    await cls.update({ is_active: false });
+    res.json({ message: 'Class deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // ─── Sections ───
 
 // GET /api/v1/classes/:id/sections
@@ -118,6 +131,42 @@ router.post('/:id/sections', async (req, res) => {
     });
 
     res.status(201).json(section);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PUT /api/v1/classes/:classId/sections/:id
+router.put('/:classId/sections/:id', async (req, res) => {
+  try {
+    const section = await Section.findOne({
+      where: { id: req.params.id, class_id: req.params.classId },
+    });
+    if (!section) return res.status(404).json({ error: 'Section not found' });
+
+    const { name, campus_id, is_active } = req.body;
+    await section.update({
+      name: name || section.name,
+      campus_id: campus_id !== undefined ? campus_id : section.campus_id,
+      is_active: is_active !== undefined ? is_active : section.is_active,
+    });
+
+    res.json(section);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// DELETE /api/v1/classes/:classId/sections/:id (soft delete)
+router.delete('/:classId/sections/:id', async (req, res) => {
+  try {
+    const section = await Section.findOne({
+      where: { id: req.params.id, class_id: req.params.classId },
+    });
+    if (!section) return res.status(404).json({ error: 'Section not found' });
+
+    await section.update({ is_active: false });
+    res.json({ message: 'Section deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -156,6 +205,41 @@ router.post('/:id/subjects', async (req, res) => {
     });
 
     res.status(201).json(subject);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// PUT /api/v1/classes/:classId/subjects/:id
+router.put('/:classId/subjects/:id', async (req, res) => {
+  try {
+    const subject = await Subject.findOne({
+      where: { id: req.params.id, class_id: req.params.classId },
+    });
+    if (!subject) return res.status(404).json({ error: 'Subject not found' });
+
+    const { name, is_active } = req.body;
+    await subject.update({
+      name: name || subject.name,
+      is_active: is_active !== undefined ? is_active : subject.is_active,
+    });
+
+    res.json(subject);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// DELETE /api/v1/classes/:classId/subjects/:id (soft delete)
+router.delete('/:classId/subjects/:id', async (req, res) => {
+  try {
+    const subject = await Subject.findOne({
+      where: { id: req.params.id, class_id: req.params.classId },
+    });
+    if (!subject) return res.status(404).json({ error: 'Subject not found' });
+
+    await subject.update({ is_active: false });
+    res.json({ message: 'Subject deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

@@ -9,6 +9,7 @@ import authRoutes from './routes/auth.js';
 import peopleRoutes from './routes/people.js';
 import classRoutes from './routes/classes.js';
 import campusRoutes from './routes/campuses.js';
+import enrollmentRoutes from './routes/enrollments.js';
 import syncRoutes from './routes/sync.js';
 import discoveryRoutes from './routes/discovery.js';
 
@@ -22,6 +23,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/people', peopleRoutes);
 app.use('/api/v1/classes', classRoutes);
 app.use('/api/v1/campuses', campusRoutes);
+app.use('/api/v1/enrollments', enrollmentRoutes);
 app.use('/api/v1/sync', syncRoutes);
 app.use('/api/v1/discovery', discoveryRoutes);
 
