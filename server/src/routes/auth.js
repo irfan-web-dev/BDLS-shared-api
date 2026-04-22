@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { Op } from 'sequelize';
 import { Person, Campus } from '../models/index.js';
 import { authenticate } from '../middleware/auth.js';
 
@@ -9,19 +10,23 @@ const router = Router();
 // POST /api/v1/auth/login - Unified login for all systems
 router.post('/login', async (req, res) => {
   try {
-    const { email, username, password } = req.body;
+    const { email, username, rollno, roll_no, identifier, password } = req.body;
+    const rawIdentifier = [identifier, email, username, rollno, roll_no]
+      .find((value) => typeof value === 'string' && value.trim().length > 0);
+    const loginIdentifier = rawIdentifier ? rawIdentifier.trim() : '';
 
-    if ((!email && !username) || !password) {
-      return res.status(400).json({ error: 'Email/username and password are required' });
+    if (!loginIdentifier || !password) {
+      return res.status(400).json({ error: 'Email/username/rollno and password are required' });
     }
 
-    // Find by email or username
-    const where = { deleted_at: null };
-    if (email) {
-      where.email = email;
-    } else {
-      where.username = username;
-    }
+    // Case-insensitive lookup by email OR username (rollno is treated as username).
+    const where = {
+      deleted_at: null,
+      [Op.or]: [
+        { email: { [Op.iLike]: loginIdentifier } },
+        { username: { [Op.iLike]: loginIdentifier } },
+      ],
+    };
 
     const person = await Person.findOne({
       where,

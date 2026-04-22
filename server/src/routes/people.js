@@ -8,6 +8,14 @@ const router = Router();
 
 router.use(serviceAuth);
 
+function normalizeCredentialValue(value, { lower = false } = {}) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const trimmed = String(value).trim();
+  if (!trimmed) return null;
+  return lower ? trimmed.toLowerCase() : trimmed;
+}
+
 // GET /api/v1/people - List people with filters
 router.get('/', async (req, res) => {
   try {
@@ -21,6 +29,7 @@ router.get('/', async (req, res) => {
       where[Op.or] = [
         { name: { [Op.iLike]: `%${search}%` } },
         { email: { [Op.iLike]: `%${search}%` } },
+        { username: { [Op.iLike]: `%${search}%` } },
         { phone: { [Op.iLike]: `%${search}%` } },
       ];
     }
@@ -92,22 +101,28 @@ router.post('/', async (req, res) => {
   try {
     const { name, email, username, phone, password, person_type, campus_id,
             gender, date_of_birth, address, cnic, parent_id, relationship } = req.body;
+    const normalizedEmail = normalizeCredentialValue(email, { lower: true });
+    const normalizedUsername = normalizeCredentialValue(username, { lower: true });
 
     if (!name || !person_type) {
       return res.status(400).json({ error: 'Name and person_type are required' });
     }
 
     // Duplicate check by email or username
-    if (email) {
-      const existing = await Person.findOne({ where: { email, deleted_at: null } });
+    if (normalizedEmail) {
+      const existing = await Person.findOne({
+        where: { email: { [Op.iLike]: normalizedEmail }, deleted_at: null },
+      });
       if (existing) {
         return res.status(409).json({ error: 'Email already exists', existing_id: existing.id });
       }
     }
-    if (username) {
-      const existing = await Person.findOne({ where: { username, deleted_at: null } });
+    if (normalizedUsername) {
+      const existing = await Person.findOne({
+        where: { username: { [Op.iLike]: normalizedUsername }, deleted_at: null },
+      });
       if (existing) {
-        return res.status(409).json({ error: 'Username already exists', existing_id: existing.id });
+        return res.status(409).json({ error: 'Username/rollno already exists', existing_id: existing.id });
       }
     }
 
@@ -115,8 +130,8 @@ router.post('/', async (req, res) => {
 
     const person = await Person.create({
       name,
-      email: email || null,
-      username: username || null,
+      email: normalizedEmail,
+      username: normalizedUsername,
       phone: phone || null,
       password: hashedPassword,
       person_type,
@@ -157,19 +172,43 @@ router.put('/:id', async (req, res) => {
     const { name, email, username, phone, person_type, campus_id,
             gender, date_of_birth, address, cnic, is_active,
             parent_id, relationship } = req.body;
+    const normalizedEmail = normalizeCredentialValue(email, { lower: true });
+    const normalizedUsername = normalizeCredentialValue(username, { lower: true });
+    const currentEmail = normalizeCredentialValue(person.email, { lower: true }) || null;
+    const currentUsername = normalizeCredentialValue(person.username, { lower: true }) || null;
 
     // Check email uniqueness if changing
-    if (email && email !== person.email) {
-      const existing = await Person.findOne({ where: { email, deleted_at: null } });
+    if (normalizedEmail && normalizedEmail !== currentEmail) {
+      const existing = await Person.findOne({
+        where: {
+          deleted_at: null,
+          id: { [Op.ne]: person.id },
+          email: { [Op.iLike]: normalizedEmail },
+        },
+      });
       if (existing) {
         return res.status(409).json({ error: 'Email already in use' });
       }
     }
 
+    // Check username/rollno uniqueness if changing
+    if (normalizedUsername && normalizedUsername !== currentUsername) {
+      const existing = await Person.findOne({
+        where: {
+          deleted_at: null,
+          id: { [Op.ne]: person.id },
+          username: { [Op.iLike]: normalizedUsername },
+        },
+      });
+      if (existing) {
+        return res.status(409).json({ error: 'Username/rollno already in use' });
+      }
+    }
+
     await person.update({
       name: name || person.name,
-      email: email !== undefined ? email : person.email,
-      username: username !== undefined ? username : person.username,
+      email: email !== undefined ? normalizedEmail : person.email,
+      username: username !== undefined ? normalizedUsername : person.username,
       phone: phone !== undefined ? phone : person.phone,
       person_type: person_type || person.person_type,
       campus_id: campus_id !== undefined ? campus_id : person.campus_id,
